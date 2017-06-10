@@ -12,7 +12,7 @@ import org.bukkit.inventory.ItemStack;
 import org.bukkit.material.Sign;
 import org.bukkit.util.Vector;
 
-public class BlockSign extends BlockType {
+public class BlockSign extends BlockNeedsAttached {
 
     public BlockSign() {
         setDrops(new ItemStack(Material.SIGN));

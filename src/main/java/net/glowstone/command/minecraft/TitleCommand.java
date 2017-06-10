@@ -1,4 +1,4 @@
-package net.glowstone.command;
+package net.glowstone.command.minecraft;
 
 import com.google.gson.Gson;
 import com.google.gson.JsonSyntaxException;
@@ -8,7 +8,7 @@ import net.glowstone.net.message.play.game.TitleMessage;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.command.CommandSender;
-import org.bukkit.command.defaults.BukkitCommand;
+import org.bukkit.command.defaults.VanillaCommand;
 import org.bukkit.entity.Player;
 import org.json.simple.JSONObject;
 import org.json.simple.JSONValue;
@@ -18,11 +18,11 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
-public class TitleCommand extends BukkitCommand {
+public class TitleCommand extends VanillaCommand {
 
     public TitleCommand() {
         super("title", "Sends a title to the specified player(s)", "/title <player> <title|subtitle|times|clear|reset> ...", Collections.emptyList());
-        setPermission("glowstone.command.title");
+        setPermission("minecraft.command.title");
     }
 
     /**
@@ -220,13 +220,13 @@ public class TitleCommand extends BukkitCommand {
 
         // Run through all of the keys to see if they are valid keys,
         // and have valid values
-        for (Object key : json.keySet()) {
-            Object value = json.get(key);
+        for (Map.Entry<String, Object> entry : json.entrySet()) {
+            Object value = entry.getValue();
 
-            if (!(key instanceof String))
-                return false; // The key is not a string, meaning that it is not valid
+            if (entry.getKey() == null)
+                return false; // The key is empty, meaning that it is not valid
 
-            String keyString = (String) key;
+            String keyString = entry.getKey();
 
             switch (keyString) {
                 case "text":

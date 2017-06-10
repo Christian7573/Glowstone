@@ -5,6 +5,7 @@ import net.glowstone.block.ItemTable;
 import org.bukkit.Material;
 import org.bukkit.block.BlockFace;
 import org.bukkit.material.MaterialData;
+import org.bukkit.material.Sign;
 import org.bukkit.material.SimpleAttachableMaterialData;
 
 public class BlockNeedsAttached extends BlockType {
@@ -19,6 +20,9 @@ public class BlockNeedsAttached extends BlockType {
     @Override
     public void updatePhysics(GlowBlock me) {
         BlockFace attachedTo = getAttachedFace(me);
+        if (attachedTo == null) {
+            return;
+        }
         if (me.getRelative(attachedTo).getType() == Material.AIR || !canPlaceAt(me, attachedTo.getOppositeFace())) {
             dropMe(me);
         }
@@ -41,6 +45,8 @@ public class BlockNeedsAttached extends BlockType {
         MaterialData data = me.getState().getData();
         if (data instanceof SimpleAttachableMaterialData) {
             return ((SimpleAttachableMaterialData) data).getAttachedFace();
+        } else if (data instanceof Sign) {
+            return ((Sign) data).getAttachedFace();
         } else {
             return BlockFace.DOWN;
         }

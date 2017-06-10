@@ -426,14 +426,14 @@ public abstract class GlowHumanEntity extends GlowLivingEntity implements HumanE
             if (!InventoryUtil.isEmpty(getItemOnCursor())) {
                 drop(getItemOnCursor());
             }
-            dropUnusedInputs();
+            handleUnusedInputs();
         }
         setItemOnCursor(InventoryUtil.createEmptyStack());
         resetInventoryView();
     }
 
     // Drop items left in crafting area.
-    private void dropUnusedInputs() {
+    private void handleUnusedInputs() {
         for (int i = 0; i < getTopInventory().getSlots().size(); i++) {
             ItemStack itemStack = getOpenInventory().getItem(i);
             if (InventoryUtil.isEmpty(itemStack)) {
@@ -441,8 +441,8 @@ public abstract class GlowHumanEntity extends GlowLivingEntity implements HumanE
             }
 
             if (isDroppableCraftingSlot(i)) {
-                drop(itemStack);
-                getOpenInventory().setItem(i, InventoryUtil.createEmptyStack());
+                getOpenInventory().getBottomInventory().addItem(itemStack);
+                getOpenInventory().getTopInventory().setItem(i, InventoryUtil.createEmptyStack());
             }
         }
     }
@@ -525,8 +525,8 @@ public abstract class GlowHumanEntity extends GlowLivingEntity implements HumanE
 
         Location dropLocation = location.clone().add(0, getEyeHeight(true) - 0.3, 0);
         GlowItem dropItem = world.dropItem(dropLocation, stack);
-        Vector vel = location.getDirection().multiply(0.3f);
-        vel.setY(vel.getY() + 0.1F);
+        Vector vel = location.getDirection().multiply(new Vector(0.11F, 0.0F, 0.11F));
+        vel.setY(0.006F);
         dropItem.setVelocity(vel);
         return dropItem;
     }

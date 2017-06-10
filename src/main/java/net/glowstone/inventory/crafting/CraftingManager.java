@@ -5,11 +5,13 @@ import net.glowstone.GlowServer;
 import net.glowstone.inventory.GlowCraftingInventory;
 import net.glowstone.util.InventoryUtil;
 import org.bukkit.Material;
+import org.bukkit.NamespacedKey;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.inventory.*;
 
 import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.util.*;
 import java.util.Map.Entry;
 
@@ -77,11 +79,7 @@ public final class CraftingManager implements Iterable<Recipe> {
      * @return The time in ticks, or 0 if that material does not burn.
      */
     public int getFuelTime(Material material) {
-        if (furnaceFuels.containsKey(material)) {
-            return furnaceFuels.get(material);
-        } else {
-            return 0;
-        }
+        return furnaceFuels.getOrDefault(material, 0);
     }
 
     public boolean isFuel(Material material) {
@@ -96,7 +94,7 @@ public final class CraftingManager implements Iterable<Recipe> {
      */
     public void removeItems(ItemStack[] items, GlowCraftingInventory inv) {
         for (int i = 0; i < items.length; i++) {
-            if (InventoryUtil.isEmpty(items[i])) {
+            if (!InventoryUtil.isEmpty(items[i])) {
                 int amount = items[i].getAmount();
                 if (amount > 1) {
                     items[i].setAmount(amount - 1);
@@ -313,6 +311,20 @@ public final class CraftingManager implements Iterable<Recipe> {
         return recipes;
     }
 
+    public Recipe getRecipeByKey(NamespacedKey key) {
+        for (ShapedRecipe shapedRecipe : shapedRecipes) {
+            if (shapedRecipe.getKey().equals(key)) {
+                return shapedRecipe;
+            }
+        }
+        for (ShapelessRecipe shapelessRecipe : shapelessRecipes) {
+            if (shapelessRecipe.getKey().equals(key)) {
+                return shapelessRecipe;
+            }
+        }
+        return null;
+    }
+
     /**
      * Clear all recipes.
      */
@@ -386,7 +398,7 @@ public final class CraftingManager implements Iterable<Recipe> {
             return;
         }
 
-        ConfigurationSection config = YamlConfiguration.loadConfiguration(in);
+        ConfigurationSection config = YamlConfiguration.loadConfiguration(new InputStreamReader(in));
 
         // shaped
         for (Map<?, ?> data : config.getMapList("shaped")) {

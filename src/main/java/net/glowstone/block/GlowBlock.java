@@ -231,8 +231,7 @@ public final class GlowBlock implements Block {
         ((GlowChunk) world.getChunkAt(this)).setMetaData(x & 0xf, z & 0xf, y, data);
 
         if (oldTypeId == Material.DOUBLE_PLANT && getRelative(BlockFace.UP).getType() == Material.DOUBLE_PLANT) {
-            ((GlowChunk) world.getChunkAt(this)).setType(x & 0xf, z & 0xf, y + 1, 0);
-            ((GlowChunk) world.getChunkAt(this)).setMetaData(x & 0xf, z & 0xf, y, 0);
+            world.getChunkAtAsync(this, chunk -> ((GlowChunk) chunk).setType(x & 0xf, z & 0xf, y + 1, 0));
             BlockChangeMessage bcmsg = new BlockChangeMessage(x, y + 1, z, 0, 0);
             for (GlowPlayer p : getWorld().getRawPlayers()) {
                 p.sendBlockChange(bcmsg);
@@ -593,12 +592,7 @@ public final class GlowBlock implements Block {
 
         long time = getWorld().getFullTime();
 
-        for (Iterator<Long> it = gameTicks.iterator(); it.hasNext(); ) {
-            long rate = it.next();
-            if (rate < time) {
-                it.remove();
-            }
-        }
+        gameTicks.removeIf(rate -> rate < time);
 
         counterMap.put(target, gameTicks);
         return gameTicks.size();

@@ -8,6 +8,7 @@ import net.glowstone.block.entity.BlockEntity;
 import net.glowstone.chunk.ChunkSection;
 import net.glowstone.chunk.GlowChunk;
 import net.glowstone.chunk.GlowChunkSnapshot;
+import net.glowstone.constants.ItemIds;
 import net.glowstone.entity.GlowEntity;
 import net.glowstone.io.ChunkIoService;
 import net.glowstone.io.entity.EntityStorage;
@@ -122,11 +123,12 @@ public final class AnvilChunkIoService implements ChunkIoService {
 
         // read block entities
         List<CompoundTag> storedBlockEntities = levelTag.getCompoundList("TileEntities");
+        BlockEntity blockEntity;
         for (CompoundTag blockEntityTag : storedBlockEntities) {
             int tx = blockEntityTag.getInt("x");
             int ty = blockEntityTag.getInt("y");
             int tz = blockEntityTag.getInt("z");
-            BlockEntity blockEntity = chunk.getEntity(tx & 0xf, ty, tz & 0xf);
+            blockEntity = chunk.createEntity(tx & 0xf, ty, tz & 0xf, chunk.getType(tx & 0xf, tz & 0xf, ty));
             if (blockEntity != null) {
                 try {
                     blockEntity.loadNbt(blockEntityTag);
@@ -147,15 +149,11 @@ public final class AnvilChunkIoService implements ChunkIoService {
                 int tileY = tileTick.getInt("y");
                 int tileZ = tileTick.getInt("z");
                 String id = tileTick.getString("i");
-                if (id.startsWith("minecraft:")) {
-                    id = id.replace("minecraft:", "");
-                    if (id.startsWith("flowing_")) {
-                        id = id.replace("flowing_", "");
-                    } else if (id.equals("water") || id.equals("lava")) {
-                        id = "stationary_" + id;
-                    }
+                Material material = ItemIds.getBlock(id);
+                if (material == null) {
+                    GlowServer.logger.warning("Unknown block '" + id + "' when loading chunk block ticks.");
+                    continue;
                 }
-                Material material = Material.getMaterial(id.toUpperCase());
                 GlowBlock block = chunk.getBlock(tileX, tileY, tileZ);
                 if (material != block.getType()) {
                     continue;
@@ -204,8 +202,8 @@ public final class AnvilChunkIoService implements ChunkIoService {
 
             CompoundTag sectionTag = new CompoundTag();
             sectionTag.putByte("Y", i);
+            sec.optimize();
             sec.writeToNBT(sectionTag);
-
             sectionTags.add(sectionTag);
         }
         levelTags.putCompoundList("Sections", sectionTags);
@@ -249,17 +247,12 @@ public final class AnvilChunkIoService implements ChunkIoService {
                 int tileX = location.getBlockX();
                 int tileY = location.getBlockY();
                 int tileZ = location.getBlockZ();
-                String type = location.getBlock().getType().name().toLowerCase();
-                if (type.startsWith("stationary_")) {
-                    type = type.replace("stationary_", "");
-                } else if (type.equals("water") || type.equals("lava")) {
-                    type = "flowing_" + type;
-                }
+                String type = ItemIds.getName(location.getBlock().getType());
                 CompoundTag tag = new CompoundTag();
                 tag.putInt("x", tileX);
                 tag.putInt("y", tileY);
                 tag.putInt("z", tileZ);
-                tag.putString("i", "minecraft:" + type);
+                tag.putString("i", type);
                 tileTicks.add(tag);
             }
         }

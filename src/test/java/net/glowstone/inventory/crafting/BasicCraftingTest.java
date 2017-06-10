@@ -4,11 +4,12 @@ import net.glowstone.testutils.ServerShim;
 import org.bukkit.Material;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.Recipe;
+import org.hamcrest.core.IsNull;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
+import static org.hamcrest.CoreMatchers.is;
+import static org.junit.Assert.assertThat;
 
 public class BasicCraftingTest {
     static CraftingManager cm;
@@ -25,15 +26,15 @@ public class BasicCraftingTest {
 
     @Test
     public void can_craft_wood_from_logs() {
-        /**
+        /*
          * Used to "prove" the CraftingManager's recipe system loads and properly finds a simple matching recipe for some inputs.
          * Sometimes needed to rule out other issues.
          */
         ItemStack[] items = new ItemStack[4];
         items[0] = new ItemStack(Material.LOG, 1, (short) 0);
         Recipe recipe = cm.getCraftingRecipe(items);
-        assertNotNull(recipe);
-        assertEquals(recipe.getResult().getType(), Material.WOOD);
-        assertEquals(recipe.getResult().getAmount(), 4);
+        assertThat("Crafting manager did not get recipe", recipe, IsNull.notNullValue());
+        assertThat("Crafting manager got wrong material", Material.WOOD, is(recipe.getResult().getType()));
+        assertThat("Crafting manager got wrong amount", 4, is(recipe.getResult().getAmount()));
     }
 }

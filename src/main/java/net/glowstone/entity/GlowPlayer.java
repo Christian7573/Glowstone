@@ -4,6 +4,7 @@ import com.destroystokyo.paper.Title;
 import com.flowpowered.network.Message;
 import com.flowpowered.network.util.ByteBufUtils;
 import com.google.common.base.Preconditions;
+import com.google.common.collect.ImmutableList;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import lombok.Getter;
@@ -19,10 +20,7 @@ import net.glowstone.block.itemtype.ItemType;
 import net.glowstone.chunk.ChunkManager.ChunkLock;
 import net.glowstone.chunk.GlowChunk;
 import net.glowstone.chunk.GlowChunk.Key;
-import net.glowstone.constants.GlowAchievement;
-import net.glowstone.constants.GlowBlockEntity;
-import net.glowstone.constants.GlowEffect;
-import net.glowstone.constants.GlowParticle;
+import net.glowstone.constants.*;
 import net.glowstone.entity.meta.ClientSettings;
 import net.glowstone.entity.meta.MetadataIndex;
 import net.glowstone.entity.meta.MetadataIndex.StatusFlags;
@@ -32,6 +30,7 @@ import net.glowstone.entity.objects.GlowItem;
 import net.glowstone.inventory.GlowInventory;
 import net.glowstone.inventory.InventoryMonitor;
 import net.glowstone.io.PlayerDataService.PlayerReader;
+import net.glowstone.io.entity.EntityStorage;
 import net.glowstone.net.GlowSession;
 import net.glowstone.net.message.play.entity.*;
 import net.glowstone.net.message.play.game.*;
@@ -55,6 +54,8 @@ import net.md_5.bungee.chat.ComponentSerializer;
 import org.bukkit.*;
 import org.bukkit.Effect.Type;
 import org.bukkit.World.Environment;
+import org.bukkit.advancement.Advancement;
+import org.bukkit.advancement.AdvancementProgress;
 import org.bukkit.attribute.Attribute;
 import org.bukkit.attribute.AttributeInstance;
 import org.bukkit.block.Block;
@@ -220,6 +221,16 @@ public class GlowPlayer extends GlowHumanEntity implements Player {
      */
     private double healthScale = 20;
     /**
+     * If this player has seen the end credits.
+     */
+    @Getter
+    @Setter
+    private boolean seenCredits;
+    /**
+     * Recipes this player has unlocked.
+     */
+    private Collection<Recipe> recipes = new HashSet<>();
+    /**
      * This player's current time offset.
      */
     private long timeOffset;
@@ -283,6 +294,10 @@ public class GlowPlayer extends GlowHumanEntity implements Player {
      * The one block the player is currently digging.
      */
     private GlowBlock digging;
+    /**
+     * The number of ticks elapsed since the player started digging.
+     */
+    private long diggingTicks = 0;
 
     public Location teleportedTo = null;
     /**
@@ -542,6 +557,10 @@ public class GlowPlayer extends GlowHumanEntity implements Player {
             }
         }
 
+        if (digging != null) {
+            pulseDigging();
+        }
+
         if (exhaustion > 4.0f) {
             exhaustion -= 4.0f;
 
@@ -628,7 +647,7 @@ public class GlowPlayer extends GlowHumanEntity implements Player {
         });
 
         if (passengerChanged) {
-            session.send(new SetPassengerMessage(SELF_ID, getPassenger() == null ? new int[0] : new int[]{getPassenger().getEntityId()}));
+            session.send(new SetPassengerMessage(SELF_ID, getPassengers().stream().mapToInt(Entity::getEntityId).toArray()));
         }
         getAttributeManager().sendMessages(session);
     }
@@ -659,11 +678,7 @@ public class GlowPlayer extends GlowHumanEntity implements Player {
                 if (message != null) {
                     Key key = new Key(message.getX() >> 4, message.getZ() >> 4);
                     if (canSeeChunk(key)) {
-                        Map<BlockVector, BlockChangeMessage> map = chunks.get(key);
-                        if (map == null) {
-                            map = new HashMap<>();
-                            chunks.put(key, map);
-                        }
+                        Map<BlockVector, BlockChangeMessage> map = chunks.computeIfAbsent(key, k -> new HashMap<>());
                         map.put(new BlockVector(message.getX(), message.getY(), message.getZ()), message);
                     }
                 }
@@ -714,7 +729,7 @@ public class GlowPlayer extends GlowHumanEntity implements Player {
         }
 
         // sort chunks by distance from player - closer chunks sent first
-        Collections.sort(newChunks, (a, b) -> {
+        newChunks.sort((a, b) -> {
             double dx = 16 * a.getX() + 8 - location.getX();
             double dz = 16 * a.getZ() + 8 - location.getZ();
             double da = dx * dx + dz * dz;
@@ -960,12 +975,6 @@ public class GlowPlayer extends GlowHumanEntity implements Player {
     @Override
     public boolean isBanned() {
         return server.getBanList(BanList.Type.NAME).isBanned(getName());
-    }
-
-    @Override
-    @Deprecated
-    public void setBanned(boolean banned) {
-        server.getBanList(BanList.Type.NAME).addBan(getName(), null, null, null);
     }
 
     @Override
@@ -1320,6 +1329,113 @@ public class GlowPlayer extends GlowHumanEntity implements Player {
     @Override
     public int getExpToLevel() {
         return getExpToLevel(level);
+    }
+
+    @Override
+    public Entity getShoulderEntityLeft() {
+        CompoundTag tag = getLeftShoulderTag();
+        if (tag.isEmpty()) {
+            return null;
+        }
+        UUID uuid = new UUID(tag.getLong("UUIDMost"), tag.getLong("UUIDLeast"));
+        return server.getEntity(uuid);
+    }
+
+    @Override
+    public void setShoulderEntityLeft(Entity entity) {
+        CompoundTag tag;
+        if (entity == null) {
+            tag = getLeftShoulderTag();
+            if (!tag.isEmpty()) {
+                EntityStorage.loadEntity(world, tag);
+            }
+        } else {
+            tag = new CompoundTag();
+            setLeftShoulderTag(tag);
+        }
+    }
+
+    @Override
+    public Entity getShoulderEntityRight() {
+        CompoundTag tag = getRightShoulderTag();
+        if (tag.isEmpty()) {
+            return null;
+        }
+        UUID uuid = new UUID(tag.getLong("UUIDMost"), tag.getLong("UUIDLeast"));
+        return server.getEntity(uuid);
+    }
+
+    @Override
+    public void setShoulderEntityRight(Entity entity) {
+        CompoundTag tag;
+        if (entity == null) {
+            tag = getRightShoulderTag();
+            if (!tag.isEmpty()) {
+                EntityStorage.loadEntity(world, tag);
+            }
+        } else {
+            tag = new CompoundTag();
+            EntityStorage.save((GlowEntity) entity, tag);
+            setRightShoulderTag(tag);
+        }
+    }
+
+    public CompoundTag getLeftShoulderTag() {
+        Object tag = metadata.get(MetadataIndex.PLAYER_LEFT_SHOULDER);
+        return tag == null ? new CompoundTag() : (CompoundTag) tag;
+    }
+
+    public CompoundTag getRightShoulderTag() {
+        Object tag = metadata.get(MetadataIndex.PLAYER_RIGHT_SHOULDER);
+        return tag == null ? new CompoundTag() : (CompoundTag) tag;
+    }
+
+    public void setLeftShoulderTag(CompoundTag tag) {
+        metadata.set(MetadataIndex.PLAYER_LEFT_SHOULDER, tag == null ? new CompoundTag() : tag);
+    }
+
+    public void setRightShoulderTag(CompoundTag tag) {
+        metadata.set(MetadataIndex.PLAYER_RIGHT_SHOULDER, tag == null ? new CompoundTag() : tag);
+    }
+
+    /**
+     * Recipes this player has unlocked.
+     *
+     * @return An immutable list of unlocked recipes.
+     */
+    public Collection<Recipe> getUnlockedRecipes() {
+        return ImmutableList.copyOf(recipes);
+    }
+
+    /**
+     * Teach the player a new recipe.
+     *
+     * @param recipe The recipe to be added to learnt recipes
+     * @param notify If the player should be notified of the recipes learnt
+     * @return If this recipe was not learned already.
+     */
+    public boolean learnRecipe(Recipe recipe, boolean notify) {
+        return recipe != null && recipes.add(recipe);
+    }
+
+    /**
+     * Remove a recipe from the player's known recipes.
+     *
+     * @param recipe The recipe to be removed from learnt recipes
+     * @return If this recipe was learned before it was removed.
+     */
+    public boolean unlearnRecipe(Recipe recipe) {
+        return recipes.remove(recipe);
+    }
+
+    /**
+     * Checks to see if the player knows this recipe.
+     *
+     * @param recipe The recipe to check
+     * @return If the player knows the recipe
+     */
+    public boolean knowsRecipe(Recipe recipe) {
+        return recipes.contains(recipe);
     }
 
     private int getExpToLevel(int level) {
@@ -1734,6 +1850,18 @@ public class GlowPlayer extends GlowHumanEntity implements Player {
         spawnParticle(particle, new Location(world, x, y, z), count, offsetX, offsetY, offsetZ, extra, data);
     }
 
+    private HashMap<Advancement, AdvancementProgress> advancements;
+
+    @Override
+    public AdvancementProgress getAdvancementProgress(Advancement advancement) {
+        return advancements.get(advancement);
+    }
+
+    @Override
+    public String getLocale() {
+        return null;
+    }
+
     public boolean affectsSpawning = true;
 
     @Override
@@ -1826,10 +1954,10 @@ public class GlowPlayer extends GlowHumanEntity implements Player {
 
     public void saveData(boolean async) {
         if (async) {
-            new Thread(() -> {
+            Bukkit.getScheduler().runTaskAsynchronously(null, () -> {
                 server.getPlayerDataService().writeData(GlowPlayer.this);
                 server.getPlayerStatisticIoService().writeStats(GlowPlayer.this);
-            }).start();
+            });
         } else {
             server.getPlayerDataService().writeData(this);
             server.getPlayerStatisticIoService().writeStats(this);
@@ -1954,12 +2082,12 @@ public class GlowPlayer extends GlowHumanEntity implements Player {
 
     @Override
     public void playSound(Location location, Sound sound, float volume, float pitch) {
-        playSound(location, sound, sound.getCategory(), volume, pitch);
+        playSound(location, sound, GlowSound.getSoundCategory(GlowSound.getVanillaId(sound)), volume, pitch);
     }
 
     @Override
     public void playSound(Location location, String sound, float volume, float pitch) {
-        playSound(location, Sound.fromId(sound), volume, pitch);
+        playSound(location, GlowSound.getVanillaSound(sound), volume, pitch);
     }
 
     @Override
@@ -1974,7 +2102,7 @@ public class GlowPlayer extends GlowHumanEntity implements Player {
 
     @Override
     public void playSound(Location location, Sound sound, SoundCategory category, float volume, float pitch) {
-        playSound(location, sound.getId(), category, volume, pitch);
+        playSound(location, GlowSound.getVanillaId(sound), category, volume, pitch);
     }
 
     @Override
@@ -1982,19 +2110,17 @@ public class GlowPlayer extends GlowHumanEntity implements Player {
         stopSound(null, sound);
     }
 
-    @Override
     public void stopAllSounds() {
         stopSound("");
     }
 
-    @Override
     public void stopSound(SoundCategory category) {
         stopSound("", category);
     }
 
     @Override
     public void stopSound(Sound sound, SoundCategory soundCategory) {
-        stopSound(sound.getId(), soundCategory);
+        stopSound(GlowSound.getVanillaId(sound), soundCategory);
     }
 
     @Override
@@ -2019,7 +2145,7 @@ public class GlowPlayer extends GlowHumanEntity implements Player {
     }
 
     public void stopSound(SoundCategory category, Sound sound) {
-        stopSound(sound == null ? "" : sound.getId(), category);
+        stopSound(sound == null ? "" : GlowSound.getVanillaId(sound), category);
     }
 
     @Override
@@ -2090,6 +2216,7 @@ public class GlowPlayer extends GlowHumanEntity implements Player {
      * Send a sign change, similar to {@link #sendSignChange(Location, String[])},
      * but using complete TextMessages instead of strings.
      *
+     * @param sign     the sign
      * @param location the location of the sign
      * @param lines    the new text on the sign or null to clear it
      * @throws IllegalArgumentException if location is null
@@ -2288,7 +2415,7 @@ public class GlowPlayer extends GlowHumanEntity implements Player {
                 currentTitle.fadeIn((int) value[0]);
                 currentTitle.stay((int) value[1]);
                 currentTitle.fadeOut((int) value[2]);
-                
+
                 break;
             default:
                 Preconditions.checkArgument(true, "Action is something other than a title, subtitle, or times");
@@ -2806,8 +2933,6 @@ public class GlowPlayer extends GlowHumanEntity implements Player {
 
     ////////////////////////////////////////////////////////////////////////////
     // Titles
-
-    @Override
     public Title getTitle() {
         return currentTitle.build();
     }
@@ -2826,8 +2951,47 @@ public class GlowPlayer extends GlowHumanEntity implements Player {
         return digging;
     }
 
+
+    private void sendBlockBreakAnimation(Location loc, int destroyStage) {
+        afterBlockChanges.add(new BlockBreakAnimationMessage(this.getEntityId(), loc.getBlockX(), loc.getBlockY(), loc.getBlockZ(), destroyStage));
+    }
+
+    private void broadcastBlockBreakAnimation(GlowBlock block, int destroyStage) {
+        GlowChunk.Key key = new GlowChunk.Key(block.getChunk().getX(), block.getChunk().getZ());
+        block.getWorld().getRawPlayers().stream()
+                .filter(player -> player.canSeeChunk(key) && player != this)
+                .forEach(player -> player.sendBlockBreakAnimation(block.getLocation(), destroyStage));
+    }
+
     public void setDigging(GlowBlock block) {
+        if (block == null) {
+            if (digging != null) {
+                // remove the animation
+                broadcastBlockBreakAnimation(digging, 10);
+            }
+        } else {
+            // show other clients the block is beginning to crack
+            broadcastBlockBreakAnimation(block, 0);
+        }
+
+        diggingTicks = 0;
         digging = block;
+    }
+
+    private void pulseDigging() {
+        ++diggingTicks;
+
+        float hardness = digging.getMaterialValues().getHardness() * 20; // seconds to ticks
+
+        // TODO: take into account the tool used to mine (ineffective=5x, effective=1.5x, material multiplier, etc.)
+        // for now, assuming hands are used and the block is not dropped
+        hardness *= 5;
+
+        double completion = (double) diggingTicks / hardness;
+        int stage = (int) (completion * 10);
+        if (stage > 9) stage = 9;
+
+        broadcastBlockBreakAnimation(digging, stage);
     }
 
     @Override

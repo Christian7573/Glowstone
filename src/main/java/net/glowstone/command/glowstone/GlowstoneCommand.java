@@ -1,7 +1,7 @@
-package net.glowstone.command;
+package net.glowstone.command.glowstone;
 
+import com.google.common.base.Preconditions;
 import net.glowstone.util.ReflectionProcessor;
-import org.apache.commons.lang.Validate;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.command.CommandSender;
@@ -56,9 +56,7 @@ public class GlowstoneCommand extends BukkitCommand {
         if (args[0].equalsIgnoreCase("property")) {
             if (args.length == 1) {
                 // list all
-                System.getProperties().forEach((key, value) -> {
-                    sender.sendMessage("Property '" + ChatColor.AQUA + key + ChatColor.RESET + "' = \"" + ChatColor.GOLD + value + ChatColor.RESET + "\".");
-                });
+                System.getProperties().forEach((key, value) -> sender.sendMessage("Property '" + ChatColor.AQUA + key + ChatColor.RESET + "' = \"" + ChatColor.GOLD + value + ChatColor.RESET + "\"."));
             } else {
                 // get a property
                 String key = args[1].toLowerCase();
@@ -104,9 +102,9 @@ public class GlowstoneCommand extends BukkitCommand {
 
     @Override
     public List<String> tabComplete(CommandSender sender, String alias, String[] args) throws IllegalArgumentException {
-        Validate.notNull(sender, "Sender cannot be null");
-        Validate.notNull(args, "Arguments cannot be null");
-        Validate.notNull(alias, "Alias cannot be null");
+        Preconditions.checkNotNull(sender, "Sender cannot be null");
+        Preconditions.checkNotNull(args, "Arguments cannot be null");
+        Preconditions.checkNotNull(alias, "Alias cannot be null");
         if (args.length == 0) {
             return Collections.emptyList();
         }

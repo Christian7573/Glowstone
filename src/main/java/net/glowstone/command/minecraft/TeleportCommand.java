@@ -1,24 +1,27 @@
-package net.glowstone.command;
+package net.glowstone.command.minecraft;
 
+import net.glowstone.command.CommandTarget;
+import net.glowstone.command.CommandUtils;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.Location;
 import org.bukkit.command.CommandSender;
-import org.bukkit.command.CommandTarget;
-import org.bukkit.command.CommandUtils;
-import org.bukkit.command.defaults.BukkitCommand;
+import org.bukkit.command.defaults.VanillaCommand;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.Player;
 
 import java.util.Collections;
 
-public class TeleportCommand extends BukkitCommand {
+public class TeleportCommand extends VanillaCommand {
+
+    private static final Entity[] NO_ENTITY = new Entity[0];
+
     public TeleportCommand() {
         super("teleport",
                 "Teleports entities to coordinates relative to the sender",
                 "/teleport <target> <x> <y> <z> [<y-rot> <x-rot>]",
                 Collections.emptyList());
-        setPermission("glowstone.command.teleport");
+        setPermission("minecraft.command.teleport");
     }
 
     @Override
@@ -37,10 +40,10 @@ public class TeleportCommand extends BukkitCommand {
         Player player = (Player) sender;
         Entity[] targets;
         if (args[0].startsWith("@")) {
-            targets = new CommandTarget(args[0]).getMatched(player.getLocation());
+            targets = new CommandTarget(sender, args[0]).getMatched(player.getLocation());
         } else {
             Player targetPlayer = Bukkit.getPlayerExact(args[0]);
-            targets = targetPlayer == null ? new Entity[0] : new Entity[]{targetPlayer};
+            targets = targetPlayer == null ? NO_ENTITY : new Entity[]{targetPlayer};
         }
 
         if (targets.length == 0) {

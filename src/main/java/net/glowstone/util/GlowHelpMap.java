@@ -4,7 +4,6 @@ import net.glowstone.GlowServer;
 import org.bukkit.ChatColor;
 import org.bukkit.command.*;
 import org.bukkit.command.defaults.BukkitCommand;
-import org.bukkit.command.defaults.VanillaCommand;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.help.*;
 
@@ -168,14 +167,14 @@ public final class GlowHelpMap implements HelpMap {
             }
 
             // Register a topic
-            for (Class<?> c : topicFactoryMap.keySet()) {
-                if (c.isAssignableFrom(command.getClass())) {
-                    HelpTopic t = topicFactoryMap.get(c).createTopic(command);
+            for (Entry<Class, HelpTopicFactory<Command>> entry : topicFactoryMap.entrySet()) {
+                if (((Class<?>) entry.getKey()).isAssignableFrom(command.getClass())) {
+                    HelpTopic t = entry.getValue().createTopic(command);
                     if (t != null) addCommandTopic(t);
                     continue outer;
                 }
-                if (command instanceof PluginCommand && c.isAssignableFrom(((PluginCommand) command).getExecutor().getClass())) {
-                    HelpTopic t = topicFactoryMap.get(c).createTopic(command);
+                if (command instanceof PluginCommand && ((Class<?>) entry.getKey()).isAssignableFrom(((PluginCommand) command).getExecutor().getClass())) {
+                    HelpTopic t = entry.getValue().createTopic(command);
                     if (t != null) addCommandTopic(t);
                     continue outer;
                 }
@@ -255,7 +254,7 @@ public final class GlowHelpMap implements HelpMap {
     }
 
     private String getCommandPluginName(Command command) {
-        if (command instanceof BukkitCommand || command instanceof VanillaCommand) {
+        if (command instanceof BukkitCommand) {
             return "Bukkit";
         }
         if (command instanceof PluginIdentifiableCommand) {
@@ -272,7 +271,7 @@ public final class GlowHelpMap implements HelpMap {
     ////////////////////////////////////////////////////////////////////////////
     // Help topic subclasses
 
-    private class GeneralHelpTopic extends HelpTopic {
+    private static class GeneralHelpTopic extends HelpTopic {
         public GeneralHelpTopic(String name, String shortText, String fullText, String permission) {
             this.name = name;
             this.shortText = shortText;
@@ -311,7 +310,7 @@ public final class GlowHelpMap implements HelpMap {
         }
     }
 
-    private class AliasTopic extends HelpTopic {
+    private static class AliasTopic extends HelpTopic {
         private final HelpTopic original;
 
         public AliasTopic(String name, HelpTopic original) {

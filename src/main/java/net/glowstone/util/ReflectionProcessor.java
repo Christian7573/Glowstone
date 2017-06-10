@@ -38,10 +38,10 @@ public class ReflectionProcessor {
             String section = sections[i];
             if (section.equals("$") || section.equals("this")) {                     // Context #1
                 cxt = context[0];
-            } else if (section.startsWith("$") && section.substring(1, section.length()).matches("[0-9]+")) { // Context #X
+            } else if (section.length() > 0 && section.charAt(0) == '$' && section.substring(1, section.length()).matches("[0-9]+")) { // Context #X
                 int index = Integer.valueOf(section.replace("$", "")) - 1;
                 cxt = context[index];
-            } else if (section.startsWith("\"") && section.endsWith("\"")) {         // String literal
+            } else if (section.length() > 0 && section.charAt(0) == '\"' && section.length() > 0 && section.charAt(section.length() - 1) == '\"') {         // String literal
                 section = section.substring(1, section.length() - 1);
                 if (i == sections.length - 1)
                     return section;
@@ -95,7 +95,7 @@ public class ReflectionProcessor {
      * @param name    the name of the method
      * @return the invokation's return value
      */
-    private Object invokeMethod(Object context, String name, String[] parameters) {
+    private Object invokeMethod(Object context, String name, String... parameters) {
         try {
             ArrayList<Object> params = new ArrayList<>();
             for (String parameter : parameters) {
@@ -122,7 +122,7 @@ public class ReflectionProcessor {
         return null;
     }
 
-    private Method getMethod(String name, Class clazz, Class[] parameters) {
+    private Method getMethod(String name, Class clazz, Class... parameters) {
         try {
             return clazz.getMethod(name, parameters);
         } catch (NoSuchMethodException e) {
@@ -178,6 +178,16 @@ public class ReflectionProcessor {
                 field.setAccessible(true);
             return field.get(context);
         } catch (Exception ignored) {
+            // is it an enum?
+            if (context != null && context instanceof Class) {
+                boolean isEnum = ((Class) context).isEnum();
+                if (isEnum) {
+                    try {
+                        return getMethod("valueOf", (Class) context, String.class).invoke(null, name);
+                    } catch (Exception ignored1) {
+                    }
+                }
+            }
         }
         return null;
     }
@@ -189,7 +199,7 @@ public class ReflectionProcessor {
      * @return the specified class, null if it is non-existent
      */
     private Class invokeClass(String name) {
-        if (name.endsWith("."))
+        if (name.length() > 0 && name.charAt(name.length() - 1) == '.')
             name = name.substring(0, name.length() - 1);
         try {
             return (Class) ClassLoader.getSystemClassLoader().loadClass(name);

@@ -2,6 +2,7 @@ package net.glowstone.util.loot;
 
 import net.glowstone.GlowServer;
 import net.glowstone.entity.GlowLivingEntity;
+import net.glowstone.util.InventoryUtil;
 import org.bukkit.Material;
 import org.bukkit.entity.EntityType;
 import org.bukkit.inventory.ItemStack;
@@ -43,6 +44,7 @@ public class LootingManager {
         register(EntityType.MUSHROOM_COW, baseDir + "mushroom_cow.json");
         register(EntityType.LLAMA, baseDir + "llama.json");
         register(EntityType.OCELOT, baseDir + "ocelot.json");
+        register(EntityType.PARROT, baseDir + "parrot.json");
         register(EntityType.PIG, baseDir + "pig.json");
         register(EntityType.PIG_ZOMBIE, baseDir + "pig_zombie.json");
         register(EntityType.POLAR_BEAR, baseDir + "polar_bear.json");
@@ -87,7 +89,7 @@ public class LootingManager {
 
     public static LootData generate(GlowLivingEntity entity) {
         if (!entities.containsKey(entity.getType())) {
-            return new LootData(new ItemStack[0], 0);
+            return new LootData(InventoryUtil.NO_ITEMS, 0);
         }
         Random random = LootingUtil.random;
         EntityLootTable table = entities.get(entity.getType());

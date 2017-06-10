@@ -1,17 +1,15 @@
 package net.glowstone.chunk;
 
-import javax.annotation.Nullable;
-
+import com.flowpowered.network.util.ByteBufUtils;
 import io.netty.buffer.ByteBuf;
 import it.unimi.dsi.fastutil.ints.IntArrayList;
 import it.unimi.dsi.fastutil.ints.IntList;
 import it.unimi.dsi.fastutil.ints.IntListIterator;
-
-import com.flowpowered.network.util.ByteBufUtils;
-
 import net.glowstone.util.NibbleArray;
 import net.glowstone.util.VariableValueArray;
 import net.glowstone.util.nbt.CompoundTag;
+
+import javax.annotation.Nullable;
 
 /**
  * A single cubic section of a chunk, with all data.
@@ -210,7 +208,7 @@ public final class ChunkSection {
      * Loads the contents of this chunk section from the given type array,
      * initializing the palette.
      *
-     * @param type The type array.
+     * @param types The type array.
      */
     public void loadTypeArray(char[] types) {
         if (types.length != ARRAY_SIZE) {
@@ -384,8 +382,8 @@ public final class ChunkSection {
      * @param z The z coordinate, for north and south.
      * @param light The new light level.
      */
-    public void setBlockLight(int x, int y, int z, byte value) {
-        blockLight.set(index(x, y, z), value);
+    public void setBlockLight(int x, int y, int z, byte light) {
+        blockLight.set(index(x, y, z), light);
     }
 
     /**
@@ -417,8 +415,8 @@ public final class ChunkSection {
      * @param z The z coordinate, for north and south.
      * @param light The new light level.
      */
-    public void setSkyLight(int x, int y, int z, byte value) {
-        skyLight.set(index(x, y, z), value);
+    public void setSkyLight(int x, int y, int z, byte light) {
+        skyLight.set(index(x, y, z), light);
     }
 
     /**
@@ -435,13 +433,14 @@ public final class ChunkSection {
     /**
      * Is this chunk section empty, IE doesn't need to be sent or saved?
      *
+     * This implementation has the same issue that causes <a
+     * href="https://bugs.mojang.com/browse/MC-80966">MC-80966</a>: It
+     * assumes that a chunk section with only air blocks has no meaningful
+     * data. This assumption is incorrect for sections near light
+     * sources, which can create lighting bugs. However, it is more
+     * expensive to send additional sections with just light data.
+     *
      * @return True if this chunk section is empty and can be removed.
-     * @implNote This implementation has the same issue that causes <a
-     *           href="https://bugs.mojang.com/browse/MC-80966">MC-80966</a>: It
-     *           assumes that a chunk section with only air blocks has no meaningful
-     *           data. This assumption is incorrect for sections near light
-     *           sources, which can create lighting bugs. However, it is more
-     *           expensive to send additional sections with just light data.
      */
     public boolean isEmpty() {
         return count == 0;
@@ -471,7 +470,7 @@ public final class ChunkSection {
         }
         long[] backing = data.getBacking();
         ByteBufUtils.writeVarInt(buf, backing.length);
-        buf.ensureWritable(backing.length * 8 + blockLight.byteSize() + (skylight ? skyLight.byteSize() : 0));
+        buf.ensureWritable((backing.length << 3) + blockLight.byteSize() + (skylight ? skyLight.byteSize() : 0));
         for (long value : backing) {
             buf.writeLong(value);
         }

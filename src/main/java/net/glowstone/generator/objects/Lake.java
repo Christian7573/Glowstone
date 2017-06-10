@@ -87,7 +87,7 @@ public class Lake {
                                     break;
                                 }
                             }
-                            if (type == Material.STATIONARY_WATER && (block.getType() == Material.ICE || block.getType() == Material.PACKED_ICE)) {
+                            if (this.type == Material.STATIONARY_WATER && (block.getType() == Material.ICE || block.getType() == Material.PACKED_ICE)) {
                                 type = block.getType();
                             }
                         } else if (y == MAX_HEIGHT / 2 - 1) {

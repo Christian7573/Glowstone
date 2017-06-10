@@ -4,7 +4,9 @@ import net.glowstone.util.InventoryUtil;
 import org.bukkit.Material;
 import org.bukkit.inventory.ItemStack;
 
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import static com.google.common.base.Preconditions.checkNotNull;
@@ -17,6 +19,7 @@ public final class ItemIds {
     private static final Map<Integer, String> names = new HashMap<>();
     private static final Map<String, Integer> items = new HashMap<>();
     private static final Map<String, Integer> blocks = new HashMap<>();
+    private static final List<String> ids = new ArrayList<>();
 
     static {
         // blocks
@@ -258,6 +261,24 @@ public final class ItemIds {
         both(232, "green_shulker_box");
         both(233, "red_shulker_box");
         both(234, "black_shulker_box");
+        both(235, "white_glazed_terracotta");
+        both(236, "orange_glazed_terracotta");
+        both(237, "magenta_glazed_terracotta");
+        both(238, "light_blue_glazed_terracotta");
+        both(239, "yellow_glazed_terracotta");
+        both(240, "lime_glazed_terracotta");
+        both(241, "pink_glazed_terracotta");
+        both(242, "gray_glazed_terracotta");
+        both(243, "silver_glazed_terracotta");
+        both(244, "cyan_glazed_terracotta");
+        both(245, "purple_glazed_terracotta");
+        both(246, "blue_glazed_terracotta");
+        both(247, "brown_glazed_terracotta");
+        both(248, "green_glazed_terracotta");
+        both(249, "red_glazed_terracotta");
+        both(250, "black_glazed_terracotta");
+        both(251, "concrete");
+        both(252, "concrete_powder");
         block(255, "structure_block");
         // items
         item(256, "iron_shovel");
@@ -456,6 +477,7 @@ public final class ItemIds {
         item(449, "totem");
         item(450, "shulker_shell");
         item(452, "iron_nugget");
+        item(453, "knowledge_book");
         item(2256, "record_13");
         item(2257, "record_cat");
         item(2258, "record_blocks");
@@ -468,6 +490,8 @@ public final class ItemIds {
         item(2265, "record_ward");
         item(2266, "record_11");
         item(2267, "record_wait");
+
+        ids.addAll(items.keySet());
     }
 
     private ItemIds() {
@@ -541,6 +565,10 @@ public final class ItemIds {
             stack.setType(item);
         }
         return stack;
+    }
+
+    public static List<String> getIds() {
+        return ids;
     }
 
     private static void block(int id, String key) {

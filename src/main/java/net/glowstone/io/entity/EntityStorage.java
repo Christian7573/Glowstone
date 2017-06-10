@@ -56,6 +56,7 @@ public final class EntityStorage {
         bind(new ChestedHorseStore<>(GlowMule.class, EntityType.MULE));
         bind(new ChestedHorseStore<>(GlowDonkey.class, EntityType.DONKEY));
         bind(new HorseStore());
+        bind(new ParrotStore());
 
         // LivingEntities - Hostile Entities
         bind(new CreeperStore());
@@ -83,7 +84,7 @@ public final class EntityStorage {
         bind(new VexStore());
         bind(new VindicatorStore());
         bind(new EvokerStore());
-
+        bind(new EnderDragonStore());
 
         bind(new ArmorStandStore());
         bind(new FallingBlockStore());
